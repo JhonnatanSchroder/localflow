@@ -25,6 +25,7 @@ class StoreContratoRequest extends FormRequest
                 : Carbon::parse($dataInicio)->addDays(15)->toDateString(),
             'data_fim' => $this->input('data_fim') ?: null,
             'data_fim_manual' => $this->boolean('data_fim_manual'),
+            'cobrar_sabado' => $this->boolean('cobrar_sabado'),
         ]);
     }
 
@@ -51,6 +52,7 @@ class StoreContratoRequest extends FormRequest
             'data_fim' => ['nullable', 'date', 'after_or_equal:data_inicio'],
             'data_fim_manual' => ['sometimes', 'boolean'],
             'valor_pc_dia' => ['required', 'numeric', 'min:0'],
+            'cobrar_sabado' => ['boolean'],
             'qtd_frete' => ['nullable', 'integer', 'min:0'],
             'valor_frete' => ['required', 'numeric', 'min:0'],
             'status' => ['required', Rule::in(['ATIVO', 'BLOQUEADO'])],

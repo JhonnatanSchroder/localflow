@@ -28,8 +28,8 @@ class UpdateContratoRequest extends FormRequest
             'endereco' => ['nullable', 'string', 'max:255'],
             'data_inicio' => ['required', 'date'],
             'data_fim' => ['nullable', 'date', 'after_or_equal:data_inicio'],
-            'valor_pc_dia' => ['required', 'numeric', 'mi
-            n:0'],
+            'valor_pc_dia' => ['required', 'numeric', 'min:0'],
+            'cobrar_sabado' => ['boolean'],
             'qtd_frete' => ['nullable', 'integer', 'min:0'],
             'valor_frete' => ['required', 'numeric', 'min:0'],
             'status' => ['required', Rule::in(['ATIVO', 'BLOQUEADO', 'DEVOLVIDO', 'FINALIZADO'])],

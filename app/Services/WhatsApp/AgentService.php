@@ -10,10 +10,86 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use App\Models\WhatsappConversation;
 
 class AgentService
 {
     private const MAX_TOOL_ROUNDS = 4;
+
+private function conversation(string $phone): WhatsappConversation
+{
+    return WhatsappConversation::firstOrCreate(
+        ['phone' => $phone],
+        [
+            'pending_action' => null,
+            'pending_data' => null,
+            'pending_at' => null,
+        ]
+    );
+}
+
+private function setPendingConfirmation(
+    string $phone,
+    string $action,
+    array $data
+): void {
+    $conversation = $this->conversation($phone);
+
+    $conversation->update([
+        'pending_action' => $action,
+        'pending_data' => $data,
+        'pending_at' => now(),
+    ]);
+}
+
+private function clearPendingConfirmation(string $phone): void
+{
+    $this->conversation($phone)->clearPendingAction();
+}
+
+private function isConfirmationYes(string $message): bool
+{
+    $message = mb_strtolower(trim($message));
+
+    return in_array($message, [
+        'sim',
+        's',
+        'confirmo',
+        'confirmado',
+        'pode',
+        'pode sim',
+        'pode fazer',
+        'ok',
+        'okay',
+        'beleza',
+        'blz',
+        'isso',
+        'isso mesmo',
+        'correto',
+        'pode registrar',
+        'pode lançar',
+    ], true);
+}
+
+private function isConfirmationNo(string $message): bool
+{
+    $message = mb_strtolower(trim($message));
+
+    return in_array($message, [
+        'não',
+        'nao',
+        'n',
+        'cancela',
+        'cancelar',
+        'cancelado',
+        'deixa',
+        'deixa pra lá',
+        'deixa pra la',
+        'não quero',
+        'nao quero',
+    ], true);
+}
+
 
     public function reply(string $phone, string $message): string
     {

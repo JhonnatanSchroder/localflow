@@ -21,6 +21,7 @@ class Contrato extends Model
         'data_inicio',
         'data_fim',
         'valor_pc_dia',
+        'cobrar_sabado',
         'qtd_frete',
         'valor_frete',
         'status',
@@ -33,6 +34,7 @@ class Contrato extends Model
     {
         return [
             'data_fim_manual' => 'boolean',
+            'cobrar_sabado' => 'boolean'
         ];
     }
 
@@ -62,6 +64,7 @@ class Contrato extends Model
 
     public function totalCalculado(): float
     {
+
         $dataFinal = $this->data_fim
     ? Carbon::parse($this->data_fim)
     : today();
@@ -90,7 +93,7 @@ class Contrato extends Model
                 ->where('tipo', 'RETIRADA')
                 ->sum('qtd');
 
-            if (! $data->isSunday()) {
+            if (! $data->isSunday() && ($data->isSaturday() || $this->cobrar_sabado)) {
                 $valorDiasPeca += $pecas;
             }
 
