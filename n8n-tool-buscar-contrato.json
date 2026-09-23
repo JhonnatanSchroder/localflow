@@ -1,0 +1,55 @@
+{
+  "name": "API - Buscar Contrato",
+  "description": "Ferramenta: Busca contrato via API Laravel",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "start",
+      "name": "Início"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://{{ env.API_URL }}/api/contratos/{{ $json.referencia }}",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}"
+            }
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "id": "http_buscar_contrato",
+      "name": "HTTP: GET /api/contratos/{id}"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retorna os dados do contrato\nconst contrato = $json.data || null;\n\nif (!contrato) {\n  return {\n    encontrado: false,\n    mensagem: 'Contrato não encontrado'\n  };\n}\n\nreturn {\n  encontrado: true,\n  contrato_id: contrato.id,\n  cliente_id: contrato.cliente_id,\n  cliente_nome: contrato.cliente?.nome,\n  referencia_contrato: contrato.referencia,\n  descricao: contrato.descricao,\n  data_inicio: contrato.data_inicio,\n  data_fim: contrato.data_fim,\n  quantidade_total: contrato.quantidade_total,\n  quantidade_atual: contrato.quantidade_atual,\n  valor_total: contrato.valor_total,\n  valor_pago: contrato.valor_pago,\n  saldo: contrato.valor_total - (contrato.valor_pago || 0),\n  status: contrato.status,\n  endereco: contrato.endereco,\n  pagamentos: contrato.pagamentos || []\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "format_response",
+      "name": "Formatar Resposta"
+    }
+  ],
+  "connections": {
+    "start": {
+      "main": [[{ "node": "http_buscar_contrato", "type": "main", "index": 0 }]]
+    },
+    "http_buscar_contrato": {
+      "main": [[{ "node": "format_response", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "api_buscar_contrato_v1"
+}

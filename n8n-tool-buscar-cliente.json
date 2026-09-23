@@ -1,0 +1,55 @@
+{
+  "name": "API - Buscar Cliente",
+  "description": "Ferramenta: Busca cliente via API Laravel",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "start",
+      "name": "Início"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://{{ env.API_URL }}/api/clientes/search/{{ encodeURIComponent($json.termo) }}",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}"
+            }
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "id": "http_buscar_cliente",
+      "name": "HTTP: GET /api/clientes/search"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retorna os dados no formato esperado pelo agente\nconst data = $json.data || [];\n\nif (data.length === 0) {\n  return {\n    encontrado: false,\n    mensagem: 'Nenhum cliente encontrado'\n  };\n}\n\nif (data.length === 1) {\n  return {\n    encontrado: true,\n    ambiguo: false,\n    cliente_id: data[0].id,\n    nome: data[0].nome,\n    telefone: data[0].telefone,\n    endereco: data[0].endereco\n  };\n}\n\n// Se houver múltiplos resultados\nreturn {\n  encontrado: true,\n  ambiguo: true,\n  clientes: data.map(c => ({\n    id: c.id,\n    nome: c.nome,\n    telefone: c.telefone\n  }))\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "format_response",
+      "name": "Formatar Resposta"
+    }
+  ],
+  "connections": {
+    "start": {
+      "main": [[{ "node": "http_buscar_cliente", "type": "main", "index": 0 }]]
+    },
+    "http_buscar_cliente": {
+      "main": [[{ "node": "format_response", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "api_buscar_cliente_v1"
+}

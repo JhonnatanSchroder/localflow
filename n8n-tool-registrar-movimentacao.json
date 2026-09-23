@@ -1,0 +1,73 @@
+{
+  "name": "API - Registrar Movimentação",
+  "description": "Ferramenta: Registra retirada ou devolução via API Laravel",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "start",
+      "name": "Início"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://{{ env.API_URL }}/api/contratos/{{ $json.contrato_id }}/movimentacoes",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}",
+              "Content-Type": "application/json"
+            }
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tipo",
+              "value": "={{ $json.tipo }}"
+            },
+            {
+              "name": "quantidade",
+              "value": "={{ $json.quantidade }}"
+            },
+            {
+              "name": "data",
+              "value": "={{ $json.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "id": "http_registrar_movimentacao",
+      "name": "HTTP: POST /api/contratos/{id}/movimentacoes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retorna confirmação da movimentação\nconst resposta = $json.data || $json;\n\nif (!resposta || resposta.status === 'error') {\n  return {\n    sucesso: false,\n    mensagem: resposta?.message || 'Erro ao registrar movimentação'\n  };\n}\n\nconst tipo_texto = $json.tipo === 'RETIRADA' ? 'retirada' : 'devolução';\nconst quantidade_texto = $json.quantidade === 1 ? 'peça' : 'peças';\n\nreturn {\n  sucesso: true,\n  movimentacao_id: resposta.id,\n  contrato_id: resposta.contrato_id,\n  tipo: resposta.tipo,\n  quantidade: resposta.quantidade,\n  data: resposta.data,\n  quantidade_atual: resposta.quantidade_atual,\n  mensagem: `${tipo_texto.charAt(0).toUpperCase() + tipo_texto.slice(1)} de ${resposta.quantidade} ${quantidade_texto} registrada com sucesso! Quantidade atual: ${resposta.quantidade_atual}`\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "format_response",
+      "name": "Formatar Resposta"
+    }
+  ],
+  "connections": {
+    "start": {
+      "main": [[{ "node": "http_registrar_movimentacao", "type": "main", "index": 0 }]]
+    },
+    "http_registrar_movimentacao": {
+      "main": [[{ "node": "format_response", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "api_registrar_movimentacao_v1"
+}

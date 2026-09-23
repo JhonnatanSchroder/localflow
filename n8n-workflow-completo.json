@@ -1,0 +1,343 @@
+{
+  "name": "LocalFlow - WhatsApp Agent com API Laravel",
+  "description": "Workflow completo: WhatsApp → n8n → API Laravel → Respostas inteligentes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [250, 300],
+      "id": "webhook_trigger",
+      "name": "🔔 Webhook WAHA"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "session",
+              "name": "session",
+              "value": "={{ $json.body.session }}",
+              "type": "string"
+            },
+            {
+              "id": "chatId",
+              "name": "chatId",
+              "value": "={{ $json.body.payload.from }}",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "={{ $json.body.payload.body }}",
+              "type": "string"
+            },
+            {
+              "id": "payload_id",
+              "name": "payload_id",
+              "value": "={{ $json.body.payload.id }}",
+              "type": "string"
+            },
+            {
+              "id": "event",
+              "name": "event",
+              "value": "={{ $json.body.event }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [450, 300],
+      "id": "extract_fields",
+      "name": "📋 Extrair Dados"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.event }}",
+              "rightValue": "message",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [650, 300],
+      "id": "validate_message",
+      "name": "✅ Validar Mensagem"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [1200, 500],
+      "id": "openai_model",
+      "name": "🤖 OpenAI GPT-4o-mini",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CRED_ID",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('extract_fields').item.json.chatId }}",
+        "sessionTTL": 3600,
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.6,
+      "position": [1200, 600],
+      "id": "redis_memory",
+      "name": "💾 Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "YOUR_REDIS_CRED_ID",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "Você é um assistente de gestão de contratos de locação. Responda sempre em português brasileiro, de forma concisa.\nUse as ferramentas disponíveis para consultar dados quando necessário.\nNunca invente informações - sempre consulte o banco de dados.\nPara operações de alteração (pagamento, retirada, devolução), confirme o contrato e dados antes de executar."
+        },
+        "maxIterations": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [1200, 300],
+      "id": "ai_agent",
+      "name": "🧠 AI Agent"
+    },
+    {
+      "parameters": {
+        "description": "Busca clientes usando o nome ou telefone. Retorna ID do cliente e detalhes.",
+        "workflowId": {
+          "__rl": true,
+          "value": "api_buscar_cliente",
+          "mode": "list",
+          "cachedResultName": "API - Buscar Cliente"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "termo": "={{ $fromAI('termo', 'Nome, CPF ou telefone do cliente. Envie exatamente como o usuário informou.', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [850, 100],
+      "id": "tool_buscar_cliente",
+      "name": "🔍 Buscar Cliente"
+    },
+    {
+      "parameters": {
+        "description": "Busca detalhes de um contrato pelo ID ou pelo cliente. Retorna todas as informações do contrato.",
+        "workflowId": {
+          "__rl": true,
+          "value": "api_buscar_contrato",
+          "mode": "list",
+          "cachedResultName": "API - Buscar Contrato"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "referencia": "={{ $fromAI('referencia', 'ID do cliente (CLI-XXX) ou ID do contrato (CRT-XXX).', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [850, 200],
+      "id": "tool_buscar_contrato",
+      "name": "📋 Buscar Contrato"
+    },
+    {
+      "parameters": {
+        "description": "Registra um pagamento realizado em um contrato.",
+        "workflowId": {
+          "__rl": true,
+          "value": "api_registrar_pagamento",
+          "mode": "list",
+          "cachedResultName": "API - Registrar Pagamento"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contrato_id": "={{ $fromAI('contrato_id', 'ID do contrato (CRT-XXX).', 'string') }}",
+            "valor": "={{ $fromAI('valor', 'Valor do pagamento em reais (número).', 'number') }}",
+            "data": "={{ $fromAI('data', 'Data do pagamento em formato YYYY-MM-DD. Se disser hoje, use a data atual.', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [850, 300],
+      "id": "tool_registrar_pagamento",
+      "name": "💳 Registrar Pagamento"
+    },
+    {
+      "parameters": {
+        "description": "Registra uma retirada ou devolução de peças em um contrato.",
+        "workflowId": {
+          "__rl": true,
+          "value": "api_registrar_movimentacao",
+          "mode": "list",
+          "cachedResultName": "API - Registrar Movimentação"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contrato_id": "={{ $fromAI('contrato_id', 'ID do contrato (CRT-XXX).', 'string') }}",
+            "tipo": "={{ $fromAI('tipo', 'RETIRADA ou DEVOLUCAO.', 'string') }}",
+            "quantidade": "={{ $fromAI('quantidade', 'Número de peças.', 'number') }}",
+            "data": "={{ $fromAI('data', 'Data em YYYY-MM-DD. Se disser hoje, use a data atual.', 'string') }}"
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [850, 400],
+      "id": "tool_registrar_movimentacao",
+      "name": "📦 Registrar Movimentação"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Seen",
+        "session": "={{ $('extract_fields').item.json.session }}",
+        "chatId": "={{ $('extract_fields').item.json.chatId }}",
+        "messageId": "={{ $('extract_fields').item.json.payload_id }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [1500, 150],
+      "id": "waha_send_seen",
+      "name": "✅ Marcar como Lido"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Start Typing",
+        "session": "={{ $('extract_fields').item.json.session }}",
+        "chatId": "={{ $('extract_fields').item.json.chatId }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [1500, 250],
+      "id": "waha_typing",
+      "name": "⌨️ Digitando..."
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1500, 350],
+      "id": "wait_delay",
+      "name": "⏳ Aguardar"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('extract_fields').item.json.session }}",
+        "chatId": "={{ $('extract_fields').item.json.chatId }}",
+        "text": "={{ $('ai_agent').item.json.output }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [1500, 450],
+      "id": "waha_send_message",
+      "name": "💬 Enviar Mensagem"
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{ "node": "extract_fields", "type": "main", "index": 0 }]]
+    },
+    "extract_fields": {
+      "main": [[{ "node": "validate_message", "type": "main", "index": 0 }]]
+    },
+    "validate_message": {
+      "main": [[{ "node": "ai_agent", "type": "main", "index": 0 }]]
+    },
+    "openai_model": {
+      "ai_languageModel": [[{ "node": "ai_agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "redis_memory": {
+      "ai_memory": [[{ "node": "ai_agent", "type": "ai_memory", "index": 0 }]]
+    },
+    "tool_buscar_cliente": {
+      "ai_tool": [[{ "node": "ai_agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "tool_buscar_contrato": {
+      "ai_tool": [[{ "node": "ai_agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "tool_registrar_pagamento": {
+      "ai_tool": [[{ "node": "ai_agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "tool_registrar_movimentacao": {
+      "ai_tool": [[{ "node": "ai_agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "ai_agent": {
+      "main": [[{ "node": "waha_send_seen", "type": "main", "index": 0 }]]
+    },
+    "waha_send_seen": {
+      "main": [[{ "node": "waha_typing", "type": "main", "index": 0 }]]
+    },
+    "waha_typing": {
+      "main": [[{ "node": "wait_delay", "type": "main", "index": 0 }]]
+    },
+    "wait_delay": {
+      "main": [[{ "node": "waha_send_message", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "localflow_v1"
+}

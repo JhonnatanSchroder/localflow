@@ -1,0 +1,159 @@
+{
+  "name": "WhatsApp - Consultar Saldo via n8n",
+  "description": "Fluxo completo: Cliente pergunta saldo → n8n busca dados → Responde",
+  "nodes": [
+    {
+      "parameters": {
+        "interval": [1, "minutes"]
+      },
+      "id": "schedule_trigger",
+      "name": "⏰ Trigger (A cada 1 min)",
+      "type": "n8n-nodes-base.schedule",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://{{ env.API_URL }}/api/whatsapp/messages/unprocessed",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}"
+            }
+          }
+        },
+        "options": {}
+      },
+      "id": "buscar_mensagens",
+      "name": "📨 Buscar Mensagens Não Processadas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "loopList": "=JSON.parse($json.data)"
+      },
+      "id": "loop_mensagens",
+      "name": "🔄 Loop em Mensagens",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai número do contrato da mensagem\nconst msg = $json.body;\nconst match = msg.match(/#?(\\d+)/);\nconst contratoId = match ? match[1] : null;\n\nreturn {\n  contratoId: contratoId,\n  mensagem: msg,\n  telefone: $json.from,\n  chatId: $json.chat_id || $json.from + '@c.us'\n};"
+      },
+      "id": "extrair_dados",
+      "name": "🔍 Extrair Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://{{ env.API_URL }}/api/contratos/{{ $json.contratoId }}",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}"
+            }
+          }
+        }
+      },
+      "id": "buscar_contrato",
+      "name": "📋 Buscar Dados do Contrato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.data;\nconst saldo = (data.total - data.total_pago).toFixed(2);\n\nconst mensagem = `Olá ${data.cliente.nome}! 🙂\n\nSeu contrato #${data.id}:\n💰 Valor total: R$ ${data.total.toFixed(2)}\n✅ Já pagou: R$ ${data.total_pago.toFixed(2)}\n⏳ Você deve: R$ ${saldo}\n\n📅 Próxima cobrança: ${data.proxima_cobranca}`;\n\nreturn {\n  resposta: mensagem,\n  saldo: saldo\n};"
+      },
+      "id": "formatar_resposta",
+      "name": "✏️ Formatar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://{{ env.API_URL }}/api/whatsapp/send",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}",
+              "Content-Type": "application/json"
+            }
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chatId",
+              "value": "={{ $('extrair_dados').json().chatId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $('formatar_resposta').json().resposta }}"
+            }
+          ]
+        }
+      },
+      "id": "enviar_whatsapp",
+      "name": "📤 Enviar via WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1750, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://{{ env.API_URL }}/api/whatsapp/messages/{{ $('buscar_mensagens').json().data[0].id }}/mark-processed",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}"
+            }
+          }
+        }
+      },
+      "id": "marcar_processada",
+      "name": "✔️ Marcar como Processada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "schedule_trigger": {
+      "main": [[{ "node": "buscar_mensagens", "type": "main", "index": 0 }]]
+    },
+    "buscar_mensagens": {
+      "main": [[{ "node": "loop_mensagens", "type": "main", "index": 0 }]]
+    },
+    "loop_mensagens": {
+      "main": [[{ "node": "extrair_dados", "type": "main", "index": 0 }]]
+    },
+    "extrair_dados": {
+      "main": [[{ "node": "buscar_contrato", "type": "main", "index": 0 }]]
+    },
+    "buscar_contrato": {
+      "main": [[{ "node": "formatar_resposta", "type": "main", "index": 0 }]]
+    },
+    "formatar_resposta": {
+      "main": [[{ "node": "enviar_whatsapp", "type": "main", "index": 0 }]]
+    },
+    "enviar_whatsapp": {
+      "main": [[{ "node": "marcar_processada", "type": "main", "index": 0 }]]
+    }
+  }
+}

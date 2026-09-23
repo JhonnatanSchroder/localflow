@@ -1,0 +1,77 @@
+{
+  "name": "API - Registrar Pagamento",
+  "description": "Ferramenta: Registra pagamento de contrato via API Laravel",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "start",
+      "name": "Início"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://{{ env.API_URL }}/api/pagamentos",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": {
+          "generic": {
+            "headers": {
+              "X-API-Key": "={{ env.API_KEY }}",
+              "Content-Type": "application/json"
+            }
+          }
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contrato_id",
+              "value": "={{ $json.contrato_id }}"
+            },
+            {
+              "name": "valor",
+              "value": "={{ $json.valor }}"
+            },
+            {
+              "name": "data",
+              "value": "={{ $json.data }}"
+            },
+            {
+              "name": "metodo",
+              "value": "transferencia"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "id": "http_registrar_pagamento",
+      "name": "HTTP: POST /api/pagamentos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retorna confirmação do pagamento\nconst resposta = $json.data || $json;\n\nif (!resposta || resposta.status === 'error') {\n  return {\n    sucesso: false,\n    mensagem: resposta?.message || 'Erro ao registrar pagamento'\n  };\n}\n\nreturn {\n  sucesso: true,\n  pagamento_id: resposta.id,\n  contrato_id: resposta.contrato_id,\n  valor: resposta.valor,\n  data: resposta.data,\n  novo_saldo: resposta.novo_saldo || 'Consultado',\n  mensagem: `Pagamento de R$ ${resposta.valor} registrado com sucesso!`\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "format_response",
+      "name": "Formatar Resposta"
+    }
+  ],
+  "connections": {
+    "start": {
+      "main": [[{ "node": "http_registrar_pagamento", "type": "main", "index": 0 }]]
+    },
+    "http_registrar_pagamento": {
+      "main": [[{ "node": "format_response", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "api_registrar_pagamento_v1"
+}
