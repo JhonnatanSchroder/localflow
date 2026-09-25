@@ -31,7 +31,8 @@ class ContratoController extends Controller
             ->get()
             ->map(function (Contrato $contrato): Contrato {
                 $contrato->sincronizarStatus();
-                $contrato->setAttribute('total', $contrato->totalCalculado());
+                $contrato->setAttribute('total_calculado', $contrato->totalCalculado());
+                $contrato->setAttribute('total_final', $contrato->valorFinal());
                 $contrato->setAttribute('total_pago', (float) ($contrato->total_pago ?? 0));
 
                 return $contrato;
@@ -47,6 +48,9 @@ class ContratoController extends Controller
     {
         return inertia('Contratos/Create', [
             'clientes' => Cliente::query()->orderBy('nome')->get(['id', 'nome', 'endereco']),
+        ])->with('toast', [
+            'type' => 'success',
+            'message' => 'Contrato cadastrado com sucesso.!',
         ]);
     }
 
@@ -103,8 +107,10 @@ class ContratoController extends Controller
      */
     public function update(UpdateContratoRequest $request, Contrato $contrato): RedirectResponse
     {
+        dd($contrato);
         $contrato->update($request->validated());
         $contrato->sincronizarStatus();
+
 
         return to_route('contratos.index')->with('toast', [
             'type' => 'success',
@@ -148,7 +154,7 @@ class ContratoController extends Controller
         }
 
         $totalPago = (float) $contrato->pagamentos()->sum('valor');
-        $totalContrato = $contrato->totalCalculado();
+        $totalContrato = $contrato->valorFinal();
         $valorRestante = $totalContrato - $totalPago;
 
         if ($valorRestante > 0) {
@@ -179,7 +185,7 @@ class ContratoController extends Controller
         }
 
         $valorRestante = round(
-            $contrato->totalCalculado() - (float) $contrato->pagamentos()->sum('valor'),
+            $contrato->valorFinal() - (float) $contrato->pagamentos()->sum('valor'),
             2,
         );
 

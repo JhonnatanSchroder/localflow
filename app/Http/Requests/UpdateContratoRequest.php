@@ -24,17 +24,18 @@ class UpdateContratoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'cliente_id' => ['required', 'integer', 'exists:clientes,id'],
+            'cliente_id' => ['sometimes', 'integer', 'exists:clientes,id'],
             'endereco' => ['nullable', 'string', 'max:255'],
-            'data_inicio' => ['required', 'date'],
+            'data_inicio' => ['sometimes', 'date'],
             'data_fim' => ['nullable', 'date', 'after_or_equal:data_inicio'],
-            'valor_pc_dia' => ['required', 'numeric', 'min:0'],
+            'valor_pc_dia' => ['sometimes', 'numeric', 'min:0'],
             'cobrar_sabado' => ['boolean'],
             'qtd_frete' => ['nullable', 'integer', 'min:0'],
-            'valor_frete' => ['required', 'numeric', 'min:0'],
-            'status' => ['required', Rule::in(['ATIVO', 'BLOQUEADO', 'DEVOLVIDO', 'FINALIZADO'])],
-            'ultima_cobranca' => ['required', 'date'],
-            'proxima_cobranca' => ['required', 'date'],
+            'desconto' => ['nullable', 'numeric', 'min:0'],
+            'valor_frete' => ['sometimes', 'numeric', 'min:0'],
+            'status' => ['sometimes', Rule::in(['ATIVO', 'BLOQUEADO', 'DEVOLVIDO', 'FINALIZADO'])],
+            'ultima_cobranca' => ['sometimes', 'date'],
+            'proxima_cobranca' => ['sometimes', 'date'],
             'obs' => ['nullable', 'string', 'max:255'],
         ];
     }

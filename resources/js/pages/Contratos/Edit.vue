@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { index } from "@/routes/contratos";
+import Checkbox from "@/components/ui/checkbox/Checkbox.vue";
+import { ref } from "vue";
 
 type ClienteOption = { id: number; nome: string };
 type Contrato = {
@@ -13,6 +15,7 @@ type Contrato = {
     cliente_id: number;
     endereco: string;
     data_inicio: string;
+    cobrar_sabado: boolean;
     data_fim: string | null;
     valor_pc_dia: string | number;
     qtd_frete: string | number | null;
@@ -24,6 +27,8 @@ type Contrato = {
 };
 
 const props = defineProps<{ contrato: Contrato; clientes: ClienteOption[] }>();
+
+const cobrarSabado = ref(props.contrato.cobrar_sabado);
 
 defineOptions({
     layout: { breadcrumbs: [{ title: "Editar contrato", href: "/contratos" }] },
@@ -87,6 +92,19 @@ defineOptions({
                         required
                     /><InputError :message="errors.data_inicio" />
                 </div>
+                <div class="flex items-center gap-2">
+                    <Checkbox
+                        id="cobrar_sabado"
+                        name="cobrar_sabado"
+                        v-model="cobrarSabado"
+                        @update:model-value="
+                            (value) => console.log('COBRAR SÁBADO:', value)
+                        "
+                    />
+
+                    <Label for="cobrar_sabado"> Cobrar sábados </Label>
+                </div>
+
                 <div class="grid gap-2">
                     <Label for="data_fim">Data de fim</Label
                     ><Input

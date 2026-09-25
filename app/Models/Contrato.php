@@ -24,6 +24,7 @@ class Contrato extends Model
         'cobrar_sabado',
         'qtd_frete',
         'valor_frete',
+        'desconto',
         'status',
         'ultima_cobranca',
         'proxima_cobranca',
@@ -34,7 +35,8 @@ class Contrato extends Model
     {
         return [
             'data_fim_manual' => 'boolean',
-            'cobrar_sabado' => 'boolean'
+            'cobrar_sabado' => 'boolean',
+            'desconto' => 'decimal:2',
         ];
     }
 
@@ -93,7 +95,7 @@ class Contrato extends Model
                 ->where('tipo', 'RETIRADA')
                 ->sum('qtd');
 
-            if (! $data->isSunday() && ($data->isSaturday() || $this->cobrar_sabado)) {
+            if (! $data->isSunday() && (! $data->isSaturday() || $this->cobrar_sabado)) {
                 $valorDiasPeca += $pecas;
             }
 
@@ -112,13 +114,21 @@ class Contrato extends Model
         return $valorPecas + $valorFretes;
     }
 
+    public function valorFinal(): float
+{
+    return max(
+        $this->totalCalculado() - (float) ($this->desconto ?? 0),
+        0
+    );
+}
+
     public function sincronizarStatus(): void
 {
     $pecasAtuais = $this->pecasAtuais();
 
     // Se já existe uma data_fim, não devemos apagá-la.
     if ($this->data_fim) {
-        $total = $this->totalCalculado();
+        $total = $this->valorFinal();
 
         $totalPago = (float) $this->pagamentos()->sum('valor');
 
